@@ -118,6 +118,8 @@ O Docker Compose subirá automaticamente os **6 serviços** com *healthchecks* e
 
 Você pode testar diretamente pelo **Swagger UI** em `http://localhost:5000/swagger` ou via terminal (`curl`):
 
+> **Aviso sobre credenciais (somente demonstração):** o usuário/senha (`comerciante` / `Verity@2026`), a chave de assinatura do JWT (`Jwt:SecretKey` em `appsettings.json`) e as senhas de PostgreSQL/RabbitMQ no `docker-compose.yml` são valores fixos, versionados apenas para que o projeto rode com um único comando. Em um ambiente real, esses segredos devem vir de um cofre (Azure Key Vault, AWS Secrets Manager, HashiCorp Vault ou *secrets* do orquestrador), o usuário deve ser validado em um Identity Provider (OIDC) e a chave do JWT deve ser rotacionada.
+
 ### Passo 1: Gerar o Token JWT (`POST /api/v1/auth/token`)
 
 ```bash
@@ -227,3 +229,9 @@ O runner executa automaticamente **3 baterias de validação real** e imprime o 
 1. **Cenário 1 — Concorrência Pesada e Exatidão Contábil:** Dispara **100 lançamentos simultâneos** (60 créditos de R\$ 100,00 e 40 débitos de R\$ 50,00), aguarda a convergência das filas e valida matematicamente se o saldo consolidado crava `R$ 4.000,00` (`100` lançamentos) sem *Lost Updates*.
 2. **Cenário 2 — Pico de Requisições no Consolidado Diário (>= 50 RPS com <= 5% de perda):** Sustenta **~75 req/s** no endpoint `GET /api/v1/daily-balance`, aferindo vazão real (RPS), taxa de perda (`0,00%`) e latências `Média`, `P50`, `P95` e `P99`.
 3. **Cenário 3 — Resiliência à Queda do Consolidado (`Chaos Test`):** Derruba o container `cashflow-consolidation-worker` (`docker stop`), dispara 20 lançamentos comprovando **100% de disponibilidade** na API (`202 Accepted`), religa o container (`docker start`) e comprova que a fila represada é processada sem perda de nenhum lançamento.
+
+---
+
+## 7. Escalabilidade e Réplicas
+
+A `CashFlow.Api`, o `TransactionWorker` e o `ConsolidationWorker` são *stateless* e estão preparados para rodar com várias réplicas: o estado fica no PostgreSQL, no Redis e no RabbitMQ, o consumo das filas é idempotente e a consolidação é serializada por data com *advisory lock*. Como este projeto não usa Kubernetes, o `docker-compose.yml` sobe uma instância de cada componente. Em produção, o escalonamento seria feito por *Deployments* com HPA (API) e KEDA (workers), atrás de um balanceador de carga. Detalhes e outras evoluções, como a separação de leitura e escrita com réplica de leitura do banco, estão em [docs/architecture.md](docs/architecture.md#5-evoluções-futuras-para-produção).

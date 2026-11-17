@@ -53,6 +53,22 @@ public sealed class RedisDailyBalanceCacheService : IDailyBalanceCacheService
 
         try
         {
+            // Protecao contra escrita fora de ordem: workers concorrentes podem tentar gravar um saldo
+            // mais antigo depois de um mais novo. TransactionCount so cresce ao longo do dia, entao um
+            // valor ja em cache com contagem maior representa um estado mais recente e nao deve ser sobrescrito.
+            var currentPayload = await _distributedCache.GetStringAsync(key, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(currentPayload))
+            {
+                var current = JsonSerializer.Deserialize<DailyBalanceResponse>(currentPayload, JsonOptions);
+                if (current is not null && current.TransactionCount > balance.TransactionCount)
+                {
+                    _logger.LogDebug(
+                        "Cache {CacheKey} ja contem um saldo mais recente ({Cached} lancamentos > {Incoming}). Escrita ignorada.",
+                        key, current.TransactionCount, balance.TransactionCount);
+                    return;
+                }
+            }
+
             var payload = JsonSerializer.Serialize(balance, JsonOptions);
             var options = new DistributedCacheEntryOptions
             {

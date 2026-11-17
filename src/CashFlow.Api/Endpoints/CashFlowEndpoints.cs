@@ -86,7 +86,7 @@ public static class CashFlowEndpoints
         IDailyBalanceQueryService queryService,
         CancellationToken cancellationToken)
     {
-        var targetDate = date ?? DateOnly.FromDateTime(DateTime.Now);
+        var targetDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var response = await queryService.GetByDateAsync(targetDate, cancellationToken);
         return Results.Ok(response);
     }

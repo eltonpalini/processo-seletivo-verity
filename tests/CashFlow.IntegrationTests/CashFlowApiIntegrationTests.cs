@@ -141,7 +141,7 @@ public sealed class CashFlowApiIntegrationTests : IClassFixture<CashFlowApiFacto
     {
         // Arrange
         var client = await CreateAuthenticatedClientAsync();
-        var today = DateOnly.FromDateTime(DateTime.Now);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         await client.PostAsJsonAsync(
             "/api/v1/transactions",
